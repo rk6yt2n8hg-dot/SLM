@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SLM-Control v3.1</title>
+    <title>SLM-Control v3.1 - ESP32</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -402,7 +402,7 @@
 
     <!-- HEADER -->
     <div class="header">
-        <h1>SLM-Control <span>v3.1</span></h1>
+        <h1>SLM-Control <span>v3.1</span> <small style="color:var(--text-sub);font-size:0.65em;">ESP32</small></h1>
         <button class="connect-btn" id="connectBtn" onclick="connectSerial()">
             <span class="dot"></span>
             <span id="connectText">Nicht verbunden</span>
@@ -454,9 +454,9 @@
             <div class="acs-bigval" id="acsValue">---</div>
         </div>
         <div class="acs-right">
-            Lüfter TOT: <span class="clickable" id="acsDead" onclick="openAcsModal()">520</span>
+            Lüfter TOT: <span class="clickable" id="acsDead" onclick="openAcsModal()">2080</span>
             <button class="acs-reset-btn" onclick="resetAcsDead()">🔄</button><br>
-            5A · 185mV/A · Oversampling 64×
+            5A · 185mV/A · Oversampling 64× · <strong>12-Bit</strong>
         </div>
         <div class="acs-note">⚠️ Bei 150mA an Untergrenze – INA219 empfohlen</div>
     </div>
@@ -536,12 +536,12 @@
     </div>
 </div>
 
-<!-- ===== MODAL: ACS TOT ===== -->
+<!-- ===== MODAL: ACS TOT (ESP32: 12-Bit 0-4095) ===== -->
 <div class="modal-overlay" id="modalAcs">
     <div class="modal">
         <div class="modal-title">Lüfter TOT-Wert</div>
         <div class="modal-display" id="acsDisplay">0</div>
-        <div class="modal-hint">Werte ≤ dieser Schwelle = kein Strom</div>
+        <div class="modal-hint">Werte ≤ dieser Schwelle = kein Strom (0-4095)</div>
         <div class="numpad">
             <button onclick="acsIn('7')">7</button><button onclick="acsIn('8')">8</button><button onclick="acsIn('9')">9</button>
             <button onclick="acsIn('4')">4</button><button onclick="acsIn('5')">5</button><button onclick="acsIn('6')">6</button>
@@ -562,11 +562,11 @@ let errors = [];
 let tempVal = '0', timeVal = '000000', acsVal = '0';
 let tempChart, humChart;
 
-// ===== SERIAL =====
+// ===== SERIAL (ESP32: 115200 Baud) =====
 async function connectSerial() {
     try {
         port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 9600 });
+        await port.open({ baudRate: 115200 });  // ESP32 Standard!
 
         const dec = new TextDecoderStream();
         port.readable.pipeTo(dec.writable);
@@ -828,16 +828,16 @@ async function confirmTime() {
     setTimeout(()=>send('H'),800);
 }
 
-/* --- ACS TOT --- */
+/* --- ACS TOT (ESP32: 12-Bit 0-4095) --- */
 function openAcsModal()  { acsVal='0'; document.getElementById('acsDisplay').textContent='0'; openModal('modalAcs'); }
 function acsIn(v) {
-    acsVal = acsVal==='0' ? v : acsVal.length<4 ? acsVal+v : acsVal;
+    acsVal = acsVal==='0' ? v : acsVal.length<5 ? acsVal+v : acsVal;  // Max 5 Ziffern für 0-4095
     document.getElementById('acsDisplay').textContent = acsVal;
 }
 function acsDel() { acsVal = acsVal.length>1 ? acsVal.slice(0,-1) : '0'; document.getElementById('acsDisplay').textContent=acsVal; }
 async function confirmAcs() {
     const v = parseInt(acsVal);
-    if(isNaN(v)||v<0||v>1023) { alert('0–1023'); return; }
+    if(isNaN(v)||v<0||v>4095) { alert('0–4095'); return; }  // ESP32: 12-Bit!
     closeModal('modalAcs');
     await send('A'+v);
     setTimeout(()=>send('H'),800);
@@ -845,7 +845,7 @@ async function confirmAcs() {
 
 /* --- Buttons --- */
 async function resetFilter()    { if(confirm('Filter-Zeit zurücksetzen?'))  { await send('R'); setTimeout(()=>send('H'),600); } }
-async function resetAcsDead()   { if(confirm('TOT auf 520 zurücksetzen?'))  { await send('A520'); setTimeout(()=>send('H'),600); } }
+async function resetAcsDead()   { if(confirm('TOT auf 2080 zurücksetzen?')) { await send('A2080'); setTimeout(()=>send('H'),600); } }  // ESP32 Default!
 async function clearFanDefect() { if(confirm('Lüfter-Defekt zurücksetzen?')){ await send('C'); setTimeout(()=>{send('H');send('F');},600); } }
 
 // ===== AUTO-UPDATE alle 5s =====
