@@ -2,857 +2,328 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>SLM-Control v3.1 - ESP32</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLM Control System</title>
     <style>
-        /* ===== VARIABLEN ===== */
-        :root {
-            --bg-dark:    #0F1115;
-            --bg-panel:   #1A1D24;
-            --bg-light:   #2A2D35;
-            --pink:       #FF006E;
-            --text:       #FFFFFF;
-            --text-sub:   #B0B3B8;
-            --blue:       #00A8FF;
-            --yellow:     #FFD93D;
-            --green:      #00FF88;
-            --red:        #FF3B30;
-        }
-
-        /* ===== BASE ===== */
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: 'JetBrains Mono', monospace;
-            background: var(--bg-dark);
-            color: var(--text);
-            padding: 20px;
-            line-height: 1.5;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: #ffffff;
             min-height: 100vh;
-        }
-
-        .container { max-width: 1400px; margin: 0 auto; }
-
-        /* ===== HEADER ===== */
-        .header { text-align:center; margin-bottom: 24px; }
-
-        .header h1 { font-size: 2.2rem; margin-bottom: 10px; }
-        .header h1 span { color: var(--pink); }
-
-        .connect-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 22px;
-            background: var(--bg-panel);
-            border: 2px solid var(--pink);
-            border-radius: 25px;
-            color: var(--text-sub);
-            font-family: inherit;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .connect-btn:hover { background: var(--pink); color: #fff; }
-        .connect-btn.connected { color: var(--green); border-color: var(--green); }
-
-        .dot { width:10px; height:10px; border-radius:50%; background: var(--text-sub); }
-        .connect-btn.connected .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
-
-        /* ===== LED ROW ===== */
-        .led-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 14px;
-            margin-bottom: 18px;
-        }
-
-        .led-box {
-            background: var(--bg-panel);
-            border: 2px solid var(--pink);
-            border-radius: 12px;
-            padding: 18px;
             display: flex;
             align-items: center;
-            gap: 14px;
+            justify-content: center;
+            overflow-y: auto;
+            position: relative;
         }
-
-        .led-light {
-            width: 36px; height: 36px; min-width: 36px;
-            border-radius: 50%;
-            transition: all 0.3s;
+        
+        @media (max-width: 768px) {
+            body {
+                display: block;
+                min-height: auto;
+                padding: 20px 0;
+            }
         }
-        .led-blue   { background: var(--blue); }
-        .led-yellow { background: var(--yellow); }
-        .led-green  { background: var(--green); }
-        .led-red    { background: var(--red); }
-
-        .led-light.led-off { opacity: 0.25; filter: grayscale(1); }
-
-        .led-light.led-on::after {
-            content:'';
+        
+        /* Animated Background Particles */
+        .particles {
             position: absolute;
-            inset: -4px;
-            border-radius: 50%;
-            opacity: 0.35;
-        }
-        .led-light { position: relative; }
-        .led-blue.led-on::after   { background: var(--blue); }
-        .led-yellow.led-on::after { background: var(--yellow); }
-        .led-green.led-on::after  { background: var(--green); }
-        .led-red.led-on::after    { background: var(--red); }
-
-        .led-light.led-blink { animation: blinkAnim 1s infinite; }
-        @keyframes blinkAnim {
-            0%,49%  { opacity:1; }
-            50%,100%{ opacity:0.25; }
-        }
-
-        .led-info { flex:1; min-width:0; }
-        .led-label { font-size: 0.78rem; color: var(--text-sub); margin-bottom: 3px; }
-        .led-value { font-size: 1.05rem; font-weight:700; }
-        .led-value.clickable { color: var(--pink); cursor:pointer; }
-        .led-value.clickable:active { opacity:0.6; }
-
-        .led-btn {
-            display: none;
-            margin-top: 7px;
-            background: var(--bg-dark);
-            border: 1px solid var(--text-sub);
-            color: var(--text);
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 0.75rem;
-            cursor: pointer;
-        }
-        .led-btn:active { background: var(--pink); border-color: var(--pink); }
-        .led-btn.visible { display: inline-block; }
-
-        /* ===== ACS PANEL ===== */
-        .acs-panel {
-            background: var(--bg-panel);
-            border: 2px solid var(--pink);
-            border-radius: 12px;
-            padding: 20px 24px;
-            margin-bottom: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 30px;
-            flex-wrap: wrap;
-        }
-        .acs-left { text-align:center; }
-        .acs-label { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 4px; }
-        .acs-bigval { font-size: 2.2rem; font-weight:700; color: var(--pink); }
-
-        .acs-right { text-align:center; color: var(--text-sub); font-size: 0.83rem; line-height:1.8; }
-        .acs-right .clickable { color: var(--pink); cursor:pointer; font-weight:700; }
-        .acs-right .clickable:active { opacity:0.6; }
-        .acs-right .acs-reset-btn {
-            background: var(--bg-dark);
-            border: 1px solid var(--text-sub);
-            color: var(--text);
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-family: inherit;
-            font-size: 0.75rem;
-            cursor: pointer;
-            margin-left: 6px;
-            vertical-align: middle;
-        }
-        .acs-right .acs-reset-btn:active { background: var(--pink); border-color: var(--pink); }
-
-        .acs-note {
-            width:100%;
-            text-align:center;
-            color: var(--text-sub);
-            font-size: 0.72rem;
-            opacity: 0.65;
-        }
-
-        /* ===== CHARTS GRID ===== */
-        .charts-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 18px;
-            margin-bottom: 18px;
-        }
-
-        .panel {
-            background: var(--bg-panel);
-            border: 2px solid var(--pink);
-            border-radius: 12px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            height: 460px;
-        }
-        .panel-title { font-size: 1.1rem; font-weight:700; margin-bottom: 14px; }
-
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(4,1fr);
-            gap: 10px;
-            margin-bottom: 14px;
-        }
-        .stat {
-            background: var(--bg-light);
-            border: 1px solid var(--pink);
-            border-radius: 8px;
-            padding: 10px 4px;
-            text-align: center;
-        }
-        .stat-label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 4px; }
-        .stat-val   { font-size: 1.15rem; font-weight:700; }
-        .stat-val.clickable { color: var(--pink); cursor:pointer; }
-        .stat-val.clickable:active { opacity:0.6; }
-
-        .chart-wrap { flex:1; min-height:0; position:relative; }
-
-        /* ===== FEHLER ===== */
-        .error-panel {
-            background: var(--bg-panel);
-            border: 2px solid var(--pink);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 18px;
-        }
-        .error-panel-title { font-size: 1.1rem; font-weight:700; margin-bottom: 14px; }
-
-        .error-list { display:flex; flex-direction:column; gap:10px; }
-
-        .no-errors { text-align:center; color: var(--green); padding:28px 0; font-size:1.1rem; }
-
-        .error-item {
-            background: var(--bg-light);
-            border-left: 4px solid var(--pink);
-            border-radius: 8px;
-            padding: 12px 14px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .error-code { font-weight:700; color: var(--pink); min-width:50px; font-size:0.88rem; }
-        .error-msg  { flex:1; font-size:0.85rem; min-width:0; }
-        .error-time { font-size:0.75rem; color: var(--text-sub); text-align:right; white-space:nowrap; }
-        .error-time .ago { color: var(--pink); display:block; margin-top:2px; }
-
-        .error-del {
-            background: var(--bg-dark);
-            border: 1px solid var(--text-sub);
-            color: var(--text);
-            width: 34px; height: 34px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            display:flex; align-items:center; justify-content:center;
-            flex-shrink: 0;
-        }
-        .error-del:active { background: var(--pink); border-color: var(--pink); }
-
-        /* ===== FOOTER ===== */
-        .footer { text-align:center; padding:24px 0 8px; color: var(--text-sub); font-size:0.82rem; }
-        .footer span { color: var(--pink); font-weight:700; }
-
-        /* ===== MODAL ===== */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .modal-overlay.active { display:flex; }
-
-        .modal {
-            background: var(--bg-panel);
-            border: 2px solid var(--pink);
-            border-radius: 16px;
-            padding: 28px 24px 24px;
             width: 100%;
-            max-width: 380px;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
         }
-        .modal-title { font-size:1.3rem; font-weight:700; text-align:center; margin-bottom:16px; }
-
-        .modal-display {
-            background: var(--bg-dark);
-            border-radius: 10px;
-            padding: 16px;
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--pink);
+        
+        .particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(255, 20, 147, 0.5);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) translateX(50px); opacity: 0; }
+        }
+        
+        .particle:nth-child(1) { left: 10%; animation-delay: 0s; }
+        .particle:nth-child(2) { left: 20%; animation-delay: 2s; }
+        .particle:nth-child(3) { left: 30%; animation-delay: 4s; }
+        .particle:nth-child(4) { left: 40%; animation-delay: 1s; }
+        .particle:nth-child(5) { left: 50%; animation-delay: 3s; }
+        .particle:nth-child(6) { left: 60%; animation-delay: 5s; }
+        .particle:nth-child(7) { left: 70%; animation-delay: 2.5s; }
+        .particle:nth-child(8) { left: 80%; animation-delay: 4.5s; }
+        .particle:nth-child(9) { left: 90%; animation-delay: 1.5s; }
+        
+        .container {
+            position: relative;
+            z-index: 1;
             text-align: center;
-            margin-bottom: 16px;
-            letter-spacing: 2px;
+            max-width: 900px;
+            padding: 20px;
         }
-        .modal-hint { text-align:center; color: var(--text-sub); font-size:0.78rem; margin-bottom:14px; margin-top:-8px; }
-
-        .numpad {
+        
+        /* Main Logo with Rotating Glow */
+        .logo-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 25px;
+        }
+        
+        .logo-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(255, 20, 147, 0.4) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            animation: rotate-glow 8s linear infinite;
+            filter: blur(40px);
+        }
+        
+        @keyframes rotate-glow {
+            0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+            50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.2); }
+            100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); }
+        }
+        
+        .logo {
+            position: relative;
+            font-size: 5em;
+            text-shadow: 0 0 40px rgba(255, 20, 147, 0.9), 0 0 80px rgba(255, 20, 147, 0.5);
+            animation: pulse-logo 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-logo {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        /* Title */
+        .title {
+            font-size: 3em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ff1493 0%, #ff69b4 50%, #ff1493 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-shift 4s ease infinite;
+            letter-spacing: -2px;
+            margin-bottom: 10px;
+        }
+        
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .subtitle {
+            font-size: 1em;
+            color: #888;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 35px;
+            opacity: 0;
+            animation: fade-in-up 1s ease 0.5s forwards;
+        }
+        
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Navigation Cards */
+        .nav-cards {
             display: grid;
-            grid-template-columns: repeat(3,1fr);
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+            opacity: 0;
+            animation: fade-in-up 1s ease 1s forwards;
+        }
+        
+        .nav-card {
+            background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(15, 15, 15, 0.95) 100%);
+            backdrop-filter: blur(30px);
+            border-radius: 25px;
+            border: 3px solid rgba(255, 20, 147, 0.3);
+            padding: 35px 30px;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            display: block;
+        }
+        
+        .nav-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 20, 147, 0.2) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        
+        .nav-card:hover::before {
+            opacity: 1;
+            animation: rotate-glow 4s linear infinite;
+        }
+        
+        .nav-card:hover {
+            transform: translateY(-20px) scale(1.05);
+            border-color: #ff1493;
+            box-shadow: 0 40px 100px rgba(255, 20, 147, 0.6);
+        }
+        
+        .nav-card-icon {
+            font-size: 3.5em;
+            margin-bottom: 15px;
+            display: block;
+            position: relative;
+            z-index: 1;
+            transition: transform 0.5s;
+        }
+        
+        .nav-card:hover .nav-card-icon {
+            transform: scale(1.3) rotate(15deg);
+        }
+        
+        .nav-card-title {
+            font-size: 1.8em;
+            font-weight: 900;
+            background: linear-gradient(135deg, #ff1493 0%, #ff69b4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -1px;
+        }
+        
+        .nav-card-desc {
+            color: #aaa;
+            font-size: 0.95em;
+            line-height: 1.5;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 15px;
+        }
+        
+        .nav-card-features {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 2px solid rgba(255, 20, 147, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .nav-card-feature {
+            color: #777;
+            font-size: 0.85em;
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
             gap: 10px;
+            transition: all 0.3s;
         }
-        .numpad button {
-            background: var(--bg-light);
-            border: none;
-            color: var(--text);
-            padding: 20px 0;
-            border-radius: 10px;
-            font-size: 1.4rem;
-            font-family: inherit;
-            font-weight: 700;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
+        
+        .nav-card:hover .nav-card-feature {
+            color: #999;
         }
-        .numpad button:active { background: var(--pink); }
-        .numpad button.wide { grid-column: span 2; }
-
-        .modal-actions { display:flex; gap:10px; margin-top:20px; }
-        .modal-actions button {
-            flex:1;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            font-family: inherit;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
+        
+        .nav-card-feature::before {
+            content: '✓';
+            color: #ff1493;
+            font-weight: bold;
+            font-size: 1.3em;
         }
-        .modal-actions button:active { opacity:0.7; }
-        .btn-cancel  { background: var(--bg-light); color: var(--text); }
-        .btn-confirm { background: var(--pink);      color: #fff; }
-
-        /* ================================================
-           RESPONSIVE — TABLET  (≤ 900px)
-           ================================================ */
+        
+        /* Responsive */
         @media (max-width: 900px) {
-            .charts-grid { grid-template-columns: 1fr; }
-            .panel { height: 360px; }
-            .led-row { grid-template-columns: repeat(2,1fr); }
-        }
-
-        /* ================================================
-           RESPONSIVE — HANDY   (≤ 600px)
-           ================================================ */
-        @media (max-width: 600px) {
-            body { padding: 10px; }
-
-            /* Header kleiner */
-            .header { margin-bottom: 16px; }
-            .header h1 { font-size: 1.4rem; margin-bottom: 8px; }
-            .connect-btn { font-size: 0.82rem; padding: 9px 16px; }
-
-            /* LEDs: 2×2 Grid */
-            .led-row { grid-template-columns: repeat(2,1fr); gap: 8px; }
-            .led-box { padding: 12px 10px; gap: 10px; }
-            .led-light { width:28px; height:28px; min-width:28px; }
-            .led-label { font-size: 0.7rem; }
-            .led-value { font-size: 0.9rem; }
-            .led-btn   { font-size: 0.7rem; padding: 4px 8px; margin-top:5px; }
-
-            /* ACS kompakt */
-            .acs-panel { flex-direction:column; gap:8px; padding:14px; }
-            .acs-bigval { font-size: 1.8rem; }
-            .acs-right { font-size: 0.78rem; }
-
-            /* Charts volle Breite, niedrigere Panels */
-            .charts-grid { gap: 10px; }
-            .panel { height: 290px; padding: 14px; }
-            .panel-title { font-size: 0.95rem; margin-bottom: 10px; }
-
-            /* Stats 2×2 auf sehr kleinen, sonst 4er */
-            .stats-row { gap: 6px; margin-bottom: 10px; }
-            .stat { padding: 7px 2px; }
-            .stat-label { font-size: 0.65rem; }
-            .stat-val   { font-size: 0.9rem; }
-
-            /* Fehler: kompakt stapeln */
-            .error-item { flex-wrap: wrap; gap: 6px; padding: 10px; }
-            .error-msg  { font-size: 0.8rem; }
-            .error-time { text-align:left; width:100%; white-space:normal; }
-
-            /* Modal: größere Numpad-Buttons für Finger */
-            .modal { padding: 22px 14px 18px; }
-            .modal-display { font-size: 1.7rem; padding: 14px; }
-            .numpad button { padding: 22px 0; font-size: 1.55rem; }
-            .modal-actions button { padding: 16px; font-size: 1.05rem; }
-        }
-
-        /* ================================================
-           RESPONSIVE — KLEINES HANDY (≤ 360px)
-           ================================================ */
-        @media (max-width: 360px) {
-            .header h1 { font-size: 1.2rem; }
-            .panel { height: 255px; }
-            .stats-row { grid-template-columns: repeat(2,1fr); }
-            .stat-val { font-size: 0.82rem; }
-            .numpad button { padding: 18px 0; font-size: 1.35rem; }
+            .title { font-size: 2.5em; }
+            .subtitle { font-size: 0.9em; letter-spacing: 3px; }
+            .logo { font-size: 4em; }
+            .nav-cards { grid-template-columns: 1fr; gap: 20px; }
+            .nav-card { padding: 30px 25px; }
         }
     </style>
 </head>
 <body>
-<div class="container">
-
-    <!-- HEADER -->
-    <div class="header">
-        <h1>SLM-Control <span>v3.1</span> <small style="color:var(--text-sub);font-size:0.65em;">ESP32</small></h1>
-        <button class="connect-btn" id="connectBtn" onclick="connectSerial()">
-            <span class="dot"></span>
-            <span id="connectText">Nicht verbunden</span>
-        </button>
+    <!-- Animated Particles -->
+    <div class="particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
     </div>
 
-    <!-- LED STATUS 4× -->
-    <div class="led-row">
-        <!-- Lüfter -->
-        <div class="led-box">
-            <div class="led-light led-blue led-off" id="led1"></div>
-            <div class="led-info">
-                <div class="led-label">Lüfter</div>
-                <div class="led-value" id="fanStatus">AUS</div>
-            </div>
+    <div class="container">
+        <!-- Logo with Rotating Glow (Same animation as in dashboards!) -->
+        <div class="logo-wrapper">
+            <div class="logo-glow"></div>
+            <div class="logo">📊</div>
         </div>
-        <!-- Filter -->
-        <div class="led-box">
-            <div class="led-light led-yellow led-off" id="led2"></div>
-            <div class="led-info">
-                <div class="led-label">Filter Prüfen</div>
-                <div class="led-value clickable" id="filterCountdown" onclick="openTimeModal()">--:--:--</div>
-                <button class="led-btn visible" onclick="resetFilter()">🔄 Reset</button>
-            </div>
-        </div>
-        <!-- Temp-Status -->
-        <div class="led-box">
-            <div class="led-light led-green led-off" id="led3"></div>
-            <div class="led-info">
-                <div class="led-label">Temp-Status</div>
-                <div class="led-value" id="tempStatus">OK</div>
-            </div>
-        </div>
-        <!-- Lüfter Defekt -->
-        <div class="led-box">
-            <div class="led-light led-red led-off" id="led4"></div>
-            <div class="led-info">
-                <div class="led-label">Lüfter Defekt</div>
-                <div class="led-value" id="defectStatus">OK</div>
-                <button class="led-btn" id="clearDefectBtn" onclick="clearFanDefect()">🔄 Reset</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ACS712 -->
-    <div class="acs-panel">
-        <div class="acs-left">
-            <div class="acs-label">⚡ ACS712 ADC-Wert</div>
-            <div class="acs-bigval" id="acsValue">---</div>
-        </div>
-        <div class="acs-right">
-            Lüfter TOT: <span class="clickable" id="acsDead" onclick="openAcsModal()">2080</span>
-            <button class="acs-reset-btn" onclick="resetAcsDead()">🔄</button><br>
-            5A · 185mV/A · Oversampling 64× · <strong>12-Bit</strong>
-        </div>
-        <div class="acs-note">⚠️ Bei 150mA an Untergrenze – INA219 empfohlen</div>
-    </div>
-
-    <!-- CHARTS -->
-    <div class="charts-grid">
-        <!-- Temperatur -->
-        <div class="panel">
-            <div class="panel-title">🌡️ Temperatur</div>
-            <div class="stats-row">
-                <div class="stat"><div class="stat-label">Aktuell</div><div class="stat-val" id="curTemp">--°C</div></div>
-                <div class="stat"><div class="stat-label">Wunsch</div><div class="stat-val clickable" id="targetTemp" onclick="openTempModal()">--°C</div></div>
-                <div class="stat"><div class="stat-label">Ø</div><div class="stat-val" id="avgTemp">--°C</div></div>
-                <div class="stat"><div class="stat-label">Min</div><div class="stat-val" id="minTemp">--°C</div></div>
-            </div>
-            <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
-        </div>
-        <!-- Luftfeuchtigkeit -->
-        <div class="panel">
-            <div class="panel-title">💧 Luftfeuchtigkeit</div>
-            <div class="stats-row">
-                <div class="stat"><div class="stat-label">Aktuell</div><div class="stat-val" id="curHum">--%</div></div>
-                <div class="stat"><div class="stat-label">Ø</div><div class="stat-val" id="avgHum">--%</div></div>
-                <div class="stat"><div class="stat-label">Min</div><div class="stat-val" id="minHum">--%</div></div>
-                <div class="stat"><div class="stat-label">Max</div><div class="stat-val" id="maxHum">--%</div></div>
-            </div>
-            <div class="chart-wrap"><canvas id="humChart"></canvas></div>
+        
+        <!-- Title -->
+        <h1 class="title">SLM Control System</h1>
+        <p class="subtitle">Smart Monitoring & Analytics</p>
+        
+        <!-- Navigation Cards -->
+        <div class="nav-cards">
+            <!-- Live Dashboard -->
+            <a href="dashboard.html" class="nav-card">
+                <span class="nav-card-icon">🎛️</span>
+                <h2 class="nav-card-title">Live Dashboard</h2>
+                <p class="nav-card-desc">
+                    Echtzeit-Überwachung deines SLM-Systems mit allen Sensordaten und Steuerungsmöglichkeiten.
+                </p>
+                <div class="nav-card-features">
+                    <div class="nav-card-feature">Live Temperatur & Luftfeuchtigkeit</div>
+                    <div class="nav-card-feature">4 Relais-Steuerung</div>
+                    <div class="nav-card-feature">Einstellbare Parameter</div>
+                    <div class="nav-card-feature">History & CSV Export</div>
+                </div>
+            </a>
+            
+            <!-- Analyse Center -->
+            <a href="analyse.html" class="nav-card">
+                <span class="nav-card-icon">📈</span>
+                <h2 class="nav-card-title">Analyse Center</h2>
+                <p class="nav-card-desc">
+                    Professionelle Datenanalyse mit mehreren Tabs, erweiterten Statistiken und PDF-Reports.
+                </p>
+                <div class="nav-card-features">
+                    <div class="nav-card-feature">Multi-Tab Organisation</div>
+                    <div class="nav-card-feature">Automatische Erkenntnisse</div>
+                    <div class="nav-card-feature">Anpassbare Schwellenwerte</div>
+                    <div class="nav-card-feature">Excel & PDF Export</div>
+                </div>
+            </a>
         </div>
     </div>
-
-    <!-- FEHLERMELDUNGEN -->
-    <div class="error-panel">
-        <div class="error-panel-title">⚠️ Fehlermeldungen</div>
-        <div class="error-list" id="errorList">
-            <div class="no-errors">✓ Keine Fehler</div>
-        </div>
+    
+    <!-- Footer -->
+    <div style="text-align: center; padding: 40px 20px; color: #666; font-size: 0.95em; letter-spacing: 2px; margin-top: 50px;">
+        Made with 💖 by <span style="color: #ff1493; font-weight: 800;">David Omowanile</span>
     </div>
-
-    <!-- FOOTER -->
-    <div class="footer">Made by <span>David Omowanile</span></div>
-</div>
-
-<!-- ===== MODAL: Temperatur ===== -->
-<div class="modal-overlay" id="modalTemp">
-    <div class="modal">
-        <div class="modal-title">Wunsch-Temperatur</div>
-        <div class="modal-display" id="tempDisplay">0</div>
-        <div class="numpad">
-            <button onclick="tempIn('7')">7</button><button onclick="tempIn('8')">8</button><button onclick="tempIn('9')">9</button>
-            <button onclick="tempIn('4')">4</button><button onclick="tempIn('5')">5</button><button onclick="tempIn('6')">6</button>
-            <button onclick="tempIn('1')">1</button><button onclick="tempIn('2')">2</button><button onclick="tempIn('3')">3</button>
-            <button onclick="tempIn('.')">.</button><button onclick="tempIn('0')">0</button><button onclick="tempDel()">⌫</button>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-cancel"  onclick="closeModal('modalTemp')">Abbrechen</button>
-            <button class="btn-confirm" onclick="confirmTemp()">OK</button>
-        </div>
-    </div>
-</div>
-
-<!-- ===== MODAL: Filter-Zeit ===== -->
-<div class="modal-overlay" id="modalTime">
-    <div class="modal">
-        <div class="modal-title">Filter-Schwellwert</div>
-        <div class="modal-display" id="timeDisplay">00:00:00</div>
-        <div class="modal-hint">HH : MM : SS</div>
-        <div class="numpad">
-            <button onclick="timeIn('7')">7</button><button onclick="timeIn('8')">8</button><button onclick="timeIn('9')">9</button>
-            <button onclick="timeIn('4')">4</button><button onclick="timeIn('5')">5</button><button onclick="timeIn('6')">6</button>
-            <button onclick="timeIn('1')">1</button><button onclick="timeIn('2')">2</button><button onclick="timeIn('3')">3</button>
-            <button onclick="timeIn('0')" class="wide">0</button><button onclick="timeDel()">⌫</button>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-cancel"  onclick="closeModal('modalTime')">Abbrechen</button>
-            <button class="btn-confirm" onclick="confirmTime()">OK</button>
-        </div>
-    </div>
-</div>
-
-<!-- ===== MODAL: ACS TOT (ESP32: 12-Bit 0-4095) ===== -->
-<div class="modal-overlay" id="modalAcs">
-    <div class="modal">
-        <div class="modal-title">Lüfter TOT-Wert</div>
-        <div class="modal-display" id="acsDisplay">0</div>
-        <div class="modal-hint">Werte ≤ dieser Schwelle = kein Strom (0-4095)</div>
-        <div class="numpad">
-            <button onclick="acsIn('7')">7</button><button onclick="acsIn('8')">8</button><button onclick="acsIn('9')">9</button>
-            <button onclick="acsIn('4')">4</button><button onclick="acsIn('5')">5</button><button onclick="acsIn('6')">6</button>
-            <button onclick="acsIn('1')">1</button><button onclick="acsIn('2')">2</button><button onclick="acsIn('3')">3</button>
-            <button onclick="acsIn('0')" class="wide">0</button><button onclick="acsDel()">⌫</button>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-cancel"  onclick="closeModal('modalAcs')">Abbrechen</button>
-            <button class="btn-confirm" onclick="confirmAcs()">OK</button>
-        </div>
-    </div>
-</div>
-
-<script>
-// ===== STATE =====
-let port = null, reader = null;
-let errors = [];
-let tempVal = '0', timeVal = '000000', acsVal = '0';
-let tempChart, humChart;
-
-// ===== SERIAL (ESP32: 115200 Baud) =====
-async function connectSerial() {
-    try {
-        port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 115200 });  // ESP32 Standard!
-
-        const dec = new TextDecoderStream();
-        port.readable.pipeTo(dec.writable);
-        reader = dec.readable.getReader();
-
-        document.getElementById('connectText').textContent = 'Verbunden';
-        document.getElementById('connectBtn').classList.add('connected');
-
-        // Uhrzeit senden
-        const n = new Date();
-        const pad = v => String(v).padStart(2,'0');
-        await send('U' + n.getFullYear() + pad(n.getMonth()+1) + pad(n.getDate()) + pad(n.getHours()) + pad(n.getMinutes()) + pad(n.getSeconds()));
-
-        readLoop();
-        setTimeout(() => { send('H'); send('D'); send('E'); send('F'); }, 800);
-
-    } catch (e) { console.error(e); }
-}
-
-async function send(cmd) {
-    if (!port) return;
-    try {
-        const w = port.writable.getWriter();
-        await w.write(new TextEncoder().encode(cmd + '\n'));
-        w.releaseLock();
-    } catch (e) { console.error('send:', e); }
-}
-
-// ===== READ LOOP =====
-async function readLoop() {
-    let buf = '';
-    let inStatus = false, inCSV = false, inErr = false;
-    let status = {}, csvData = [], csvType = '', csvIdx = 0;
-
-    try {
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            buf += value;
-
-            const lines = buf.split('\n');
-            buf = lines.pop();
-
-            for (const raw of lines) {
-                const l = raw.trim();
-                if (!l) continue;
-
-                /* STATUS */
-                if (l === 'STATUS_START')  { status = {}; inStatus = true; continue; }
-                if (l === 'STATUS_END')    { applyStatus(status); inStatus = false; continue; }
-                if (inStatus && l.includes(':')) {
-                    const i = l.indexOf(':');
-                    status[l.substring(0,i)] = l.substring(i+1);
-                    continue;
-                }
-
-                /* CSV */
-                if (l === 'CSV_START' || l === 'TEMP_CSV_START') {
-                    inCSV = true; csvData = [];
-                    csvType = l === 'CSV_START' ? 'hum' : 'temp';
-                    continue;
-                }
-                if (l === 'CSV_END' || l === 'TEMP_CSV_END') { applyChart(csvType, csvData, csvIdx); inCSV = false; continue; }
-                if (inCSV && l.startsWith('INDEX:')) { csvIdx = parseInt(l.split(':')[1]); continue; }
-                if (inCSV && l.includes(','))        { csvData.push(parseFloat(l.split(',')[1])); continue; }
-
-                /* ERRORS */
-                if (l === 'ERRORS_START') { errors = []; inErr = true; continue; }
-                if (l === 'ERRORS_END')   { renderErrors(); inErr = false; continue; }
-                if (inErr && l.includes('|')) {
-                    const p = l.split('|');
-                    if (p.length === 5) errors.push({ idx:+p[0], code:p[1], msg:p[2], dt:p[3], st:p[4] });
-                }
-            }
-        }
-    } catch (e) { console.error('read:', e); }
-}
-
-// ===== STATUS → UI =====
-function applyStatus(d) {
-    if (d.TEMP)   document.getElementById('curTemp').textContent  = parseFloat(d.TEMP).toFixed(1)  + '°C';
-    if (d.HUM)    document.getElementById('curHum').textContent   = parseFloat(d.HUM).toFixed(1)   + '%';
-    if (d.TARGET && !document.getElementById('modalTemp').classList.contains('active'))
-        document.getElementById('targetTemp').textContent = parseFloat(d.TARGET).toFixed(1) + '°C';
-
-    if (d.ACS712)   document.getElementById('acsValue').textContent = d.ACS712;
-    if (d.ACS_DEAD && !document.getElementById('modalAcs').classList.contains('active'))
-        document.getElementById('acsDead').textContent = d.ACS_DEAD;
-
-    // LED 1 – Lüfter
-    setLED('led1', d.RELAY1==='1');
-    document.getElementById('fanStatus').textContent = d.RELAY1==='1' ? 'AN' : 'AUS';
-
-    // LED 2 – Filter
-    setLED('led2', d.RELAY2==='1');
-
-    // Filter-Countdown
-    if (d.THRESHOLD && d.OVERHEAT && !document.getElementById('modalTime').classList.contains('active')) {
-        const rem = parseInt(d.THRESHOLD) - parseInt(d.OVERHEAT);
-        if (rem > 0) {
-            const h=Math.floor(rem/3600), m=Math.floor((rem%3600)/60), s=rem%60;
-            document.getElementById('filterCountdown').textContent =
-                String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-        } else {
-            document.getElementById('filterCountdown').textContent = '00:00:00';
-        }
-    }
-
-    // LED 3 – Temp-Status
-    const tempHigh = d.TEMP && d.TARGET && parseFloat(d.TEMP) >= parseFloat(d.TARGET);
-    setLED('led3', d.RELAY3==='1', tempHigh);
-    document.getElementById('tempStatus').textContent = tempHigh ? 'HOCH' : 'OK';
-
-    // LED 4 – Fan Defect
-    const stored   = d.FAN_DEFECT_STORED==='1';
-    const ledPhys  = d.LED==='1';
-    const el4      = document.getElementById('led4');
-    const defBtn   = document.getElementById('clearDefectBtn');
-
-    el4.className = 'led-light led-red';
-    if (stored && !ledPhys) {
-        el4.classList.add('led-on','led-blink');
-        document.getElementById('defectStatus').textContent = 'WIEDERHERGESTELLT';
-        defBtn.classList.add('visible');
-    } else if (ledPhys) {
-        el4.classList.add('led-on');
-        document.getElementById('defectStatus').textContent = 'DEFEKT';
-        defBtn.classList.add('visible');
-    } else {
-        el4.classList.add('led-off');
-        document.getElementById('defectStatus').textContent = 'OK';
-        defBtn.classList.remove('visible');
-    }
-}
-
-function setLED(id, on, blink) {
-    const el = document.getElementById(id);
-    el.classList.remove('led-on','led-off','led-blink');
-    el.classList.add(on ? 'led-on' : 'led-off');
-    if (blink && on) el.classList.add('led-blink');
-}
-
-// ===== CHARTS =====
-function initCharts() {
-    const base = {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 300 },
-        plugins: { legend: { display: false } },
-        scales: {
-            x: { grid:{ color:'rgba(255,255,255,0.07)' }, ticks:{ color:'#B0B3B8', maxTicksLimit:6 } },
-            y: { grid:{ color:'rgba(255,255,255,0.07)' }, ticks:{ color:'#B0B3B8' } }
-        }
-    };
-
-    tempChart = new Chart(document.getElementById('tempChart'), {
-        type:'line',
-        data:{ labels: Array(60).fill(''), datasets:[{ data: Array(60).fill(0), borderColor:'#FF006E', backgroundColor:'rgba(255,0,110,0.12)', borderWidth:2, fill:true, tension:0.4, pointRadius:0 }] },
-        options:{ ...base, scales:{ ...base.scales, y:{ ...base.scales.y, min:0, max:50 } } }
-    });
-
-    humChart = new Chart(document.getElementById('humChart'), {
-        type:'line',
-        data:{ labels: Array(60).fill(''), datasets:[{ data: Array(60).fill(0), borderColor:'#FF006E', backgroundColor:'rgba(255,0,110,0.12)', borderWidth:2, fill:true, tension:0.4, pointRadius:0 }] },
-        options:{ ...base, scales:{ ...base.scales, y:{ ...base.scales.y, min:0, max:100 } } }
-    });
-}
-
-function applyChart(type, raw, idx) {
-    const data = [];
-    for (let i=0; i<raw.length; i++) data.push(raw[(idx+i) % raw.length]);
-
-    const chart = type==='temp' ? tempChart : humChart;
-    chart.data.datasets[0].data = data;
-    chart.update();
-
-    const valid = data.filter(v => v > 0);
-    if (valid.length === 0) return;
-    const min = Math.min(...valid);
-    const max = Math.max(...valid);
-    const avg = valid.reduce((a,b)=>a+b,0) / valid.length;
-
-    if (type==='temp') {
-        document.getElementById('avgTemp').textContent = avg.toFixed(1)+'°C';
-        document.getElementById('minTemp').textContent = min.toFixed(1)+'°C';
-    } else {
-        document.getElementById('avgHum').textContent = avg.toFixed(1)+'%';
-        document.getElementById('minHum').textContent = min.toFixed(1)+'%';
-        document.getElementById('maxHum').textContent = max.toFixed(1)+'%';
-    }
-}
-
-// ===== FEHLER =====
-function renderErrors() {
-    const el = document.getElementById('errorList');
-    if (errors.length===0) { el.innerHTML='<div class="no-errors">✓ Keine Fehler</div>'; return; }
-
-    el.innerHTML = errors.map(e => {
-        const dt   = new Date(e.dt.replace(' ','T'));
-        const diff = Date.now() - dt;
-        const mins = Math.floor(diff/60000), hrs = Math.floor(mins/60), days = Math.floor(hrs/24);
-        const ago  = days>0 ? `vor ${days}d ${hrs%24}h` : hrs>0 ? `vor ${hrs}h ${mins%60}min` : mins>0 ? `vor ${mins}min` : 'gerade eben';
-
-        return `<div class="error-item">
-            <span class="error-code">${e.code}</span>
-            <span class="error-msg">${e.msg}</span>
-            <span class="error-time">${e.dt}<span class="ago">${ago}</span></span>
-            <button class="error-del" onclick="delError(${e.idx})">🗑️</button>
-        </div>`;
-    }).join('');
-}
-
-async function delError(i) { await send('X'+i); setTimeout(()=>send('F'),600); }
-
-// ===== MODALS =====
-function openModal(id) { document.getElementById(id).classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-
-// Backdrop-Klick schließt
-document.querySelectorAll('.modal-overlay').forEach(ov => {
-    ov.addEventListener('click', e => { if(e.target===ov) ov.classList.remove('active'); });
-});
-// ESC schließt
-document.addEventListener('keydown', e => {
-    if(e.key==='Escape') document.querySelectorAll('.modal-overlay.active').forEach(m=>m.classList.remove('active'));
-});
-
-/* --- Temperatur --- */
-function openTempModal()  { tempVal='0'; document.getElementById('tempDisplay').textContent='0'; openModal('modalTemp'); }
-function tempIn(v) {
-    if(v==='.') { if(!tempVal.includes('.')) tempVal+='.'; }
-    else        { tempVal = tempVal==='0' ? v : tempVal+v; }
-    document.getElementById('tempDisplay').textContent = tempVal;
-}
-function tempDel() { tempVal = tempVal.length>1 ? tempVal.slice(0,-1) : '0'; document.getElementById('tempDisplay').textContent=tempVal; }
-async function confirmTemp() {
-    const t = parseFloat(tempVal);
-    if(isNaN(t)||t<0||t>50) { alert('0–50 °C'); return; }
-    closeModal('modalTemp');
-    await send('T'+t);
-    setTimeout(()=>send('H'),800);
-}
-
-/* --- Filter-Zeit --- */
-function openTimeModal()  { timeVal='000000'; document.getElementById('timeDisplay').textContent='00:00:00'; openModal('modalTime'); }
-function timeIn(v) {
-    timeVal = timeVal.substring(1)+v;
-    document.getElementById('timeDisplay').textContent = timeVal.substring(0,2)+':'+timeVal.substring(2,4)+':'+timeVal.substring(4,6);
-}
-function timeDel() {
-    timeVal = '0'+timeVal.substring(0,5);
-    document.getElementById('timeDisplay').textContent = timeVal.substring(0,2)+':'+timeVal.substring(2,4)+':'+timeVal.substring(4,6);
-}
-async function confirmTime() {
-    const sec = parseInt(timeVal.substring(0,2))*3600 + parseInt(timeVal.substring(2,4))*60 + parseInt(timeVal.substring(4,6));
-    if(sec<1||sec>86400) { alert('1s – 24h'); return; }
-    closeModal('modalTime');
-    await send('S'+sec);
-    setTimeout(()=>send('H'),800);
-}
-
-/* --- ACS TOT (ESP32: 12-Bit 0-4095) --- */
-function openAcsModal()  { acsVal='0'; document.getElementById('acsDisplay').textContent='0'; openModal('modalAcs'); }
-function acsIn(v) {
-    acsVal = acsVal==='0' ? v : acsVal.length<5 ? acsVal+v : acsVal;  // Max 5 Ziffern für 0-4095
-    document.getElementById('acsDisplay').textContent = acsVal;
-}
-function acsDel() { acsVal = acsVal.length>1 ? acsVal.slice(0,-1) : '0'; document.getElementById('acsDisplay').textContent=acsVal; }
-async function confirmAcs() {
-    const v = parseInt(acsVal);
-    if(isNaN(v)||v<0||v>4095) { alert('0–4095'); return; }  // ESP32: 12-Bit!
-    closeModal('modalAcs');
-    await send('A'+v);
-    setTimeout(()=>send('H'),800);
-}
-
-/* --- Buttons --- */
-async function resetFilter()    { if(confirm('Filter-Zeit zurücksetzen?'))  { await send('R'); setTimeout(()=>send('H'),600); } }
-async function resetAcsDead()   { if(confirm('TOT auf 2080 zurücksetzen?')) { await send('A2080'); setTimeout(()=>send('H'),600); } }  // ESP32 Default!
-async function clearFanDefect() { if(confirm('Lüfter-Defekt zurücksetzen?')){ await send('C'); setTimeout(()=>{send('H');send('F');},600); } }
-
-// ===== AUTO-UPDATE alle 5s =====
-setInterval(() => { if(port) { send('H'); send('D'); send('E'); send('F'); } }, 5000);
-
-// ===== INIT =====
-document.addEventListener('DOMContentLoaded', initCharts);
-</script>
 </body>
 </html>
